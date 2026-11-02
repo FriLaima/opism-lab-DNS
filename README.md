@@ -409,7 +409,7 @@ zone reload queued
 
 ## Завдання 5. Негативне кешування
 
-**Прогноз (записати до вимірювання). Формула за RFC 2308 і розраховане значення:**
+**Прогноз (записати до вимірювання). Формула за RFC 2308 і розраховане значення:**за RFC 2308 час негативного кешування дорівнює мінімальному значенню між TTL SOA-запису та полем minimum (min(20; 90) = 20 секунд). Після отримання відповіді NXDOMAIN резолвер зберігатиме негативний результат протягом 20 секунд.
 
 **Перевірка, що сервер до `zone-reload` повертає `NXDOMAIN`:**
 
@@ -441,7 +441,34 @@ cs-202-20.lab.          20      IN      SOA     ns.cs-202-20.lab. admin.cs-202-2
 **Запит через resolver-a (крок 3), час `zone-reload` (крок 4), перевірка на сервері (крок 5):**
 
 ```
+root@ns-cs-202-20:/# date +%T; dig new-swsmz.cs-202-20.lab
+22:04:25
 
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> new-swsmz.cs-202-20.lab
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 9104
+;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;new-swsmz.cs-202-20.lab.       IN      A
+
+;; AUTHORITY SECTION:
+cs-202-20.lab.          20      IN      SOA     ns.cs-202-20.lab. admin.cs-202-20.lab. 2026110216 3600 600 86400 90
+
+;; Query time: 1 msec
+;; SERVER: 10.53.0.53#53(10.53.0.53) (UDP)
+;; WHEN: Mon Nov 02 22:04:25 UTC 2026
+;; MSG SIZE  rcvd: 97
+
+root@ns-cs-202-20:/# zone-reload; date +%T
+zone cs-202-20.lab/IN: loaded serial 2026110217
+OK
+zone reload queued
+22:04:30
+root@ns-cs-202-20:/# dig new-swsmz.cs-202-20.lab +norec +short
 ```
 
 **Вивід циклу спостереження (перші два рядки, останній рядок з `NXDOMAIN`, перший рядок з `NOERROR`):**
@@ -456,7 +483,7 @@ cs-202-20.lab.          20      IN      SOA     ns.cs-202-20.lab. admin.cs-202-2
 
 | Негативну відповідь закешовано | Запис створено | Ім'я резолвиться через resolver-a | Виміряно, с | Прогноз, с |
 |---|---|---|---|---|
-| | | | | |
+| 22:04:25 | 22:04:30 | 22:04:47 | 22 | 20 |
 
 **1. Чому тривалість негативного кешування визначається записом SOA, а не записом, який запитували?**
 
@@ -470,28 +497,50 @@ cs-202-20.lab.          20      IN      SOA     ns.cs-202-20.lab. admin.cs-202-2
 
 | Ім'я | Перший запит | Повторний запит |
 |---|---|---|
-| A: нове ім'я у власній зоні | | |
-| B: нове ім'я в зоні `lab.` | | |
-| C: ім'я в неіснуючому TLD | | |
-| D: `www.sNN.lab` після перезапуску резолвера | | |
+| A: нове ім'я у власній зоні | Власний сервер 10.53.1.1 | Кеш |
+| B: нове ім'я в зоні `lab.` | 	TLD 10.53.0.3 | Кеш |
+| C: ім'я в неіснуючому TLD |	Root 10.53.0.2 | Кеш |
+| D: `www.sNN.lab` після перезапуску резолвера | Root -> TLD -> власний сервер | Кеш |
 
 **Вивід вимірювань:**
 
-```text
+```
+root@ns-cs-202-20:/# A=y$RANDOM.cs-202-20.lab; dig $A | grep 'Query time'; dig $A | grep 'Query time'
+;; Query time: 0 msec
+;; Query time: 1 msec
+root@ns-cs-202-20:/# B=x$RANDOM.lab; dig $B | grep 'Query time'; dig $B | grep 'Query time'
+;; Query time: 39 msec
+;; Query time: 0 msec
+root@ns-cs-202-20:/# C=x$RANDOM.zz$RANDOM; dig $C | grep 'Query time'; dig $C | grep 'Query time'
+;; Query time: 80 msec
+;; Query time: 0 msec
+@FriLaima ➜ /workspaces/opism-lab-DNS (master) $ docker compose -f stand/compose.yaml restart resolver-a
+[+] restart 0/1
+ ⠴ Container dnslab-resolver-a-1 Restarting                             0.5s
+@FriLaima ➜ /workspaces/opism-lab-DNS (master) $ docker compose -f stand/compose.yaml exec cs-202-20 bash -l
+root@ns-cs-202-20:/# dig www.cs-202-20.lab | grep 'Query time'; dig www.cs-202-20.lab | grep 'Query time'
+;; Query time: 401 msec
+;; Query time: 0 msec
 ```
 
 | Ім'я | Перший запит, мс | Повторний, мс | Сервери, до яких звернувся резолвер (за журналами) |
 |---|---|---|---|
-| A | | | |
-| B | | | |
-| C | | | |
-| D | | | |
+| A | 0 | 1 | Власний сервер 10.53.1.1 |
+| B | 39 | 0 | TLD 10.53.0.3 |
+| C | 80 | 0 | Root 10.53.0.2 |
+| D | 401 | 0 | Root 10.53.0.2 -> TLD 10.53.0.3 -> власний сервер 10.53.1.1 |
 
 **Значення `time_namelookup` з `curl` після перезапуску резолвера:**
-
+```
+root@ns-cs-202-20:/# curl -so /dev/null -w '%{time_namelookup}\n' http://www.cs-202-20.lab/
+0.000660
+```
 **Фрагменти журналів запитів root, TLD і власного сервера для рядка D:**
 
-```text
+```
+02-Nov-2026 22:35:29.747 query: www.cs-202-20.lab IN A
+02-Nov-2026 22:35:29.867 query: www.cs-202-20.lab IN A
+02-Nov-2026 22:35:29.907 query: www.cs-202-20.lab IN A
 ```
 
 **1. Яку затримку вносить кожен із серверів root, TLD і власний сервер? Покажіть, з яких рядків таблиці це випливає.**
@@ -502,32 +551,93 @@ cs-202-20.lab.          20      IN      SOA     ns.cs-202-20.lab. admin.cs-202-2
 
 ## Завдання 7. Інцидент: зупинка власного сервера
 
-**Прогноз (записати до вимірювання). Що поверне кожен резолвер після зупинки сервера та спливання TTL і скільки часу займе відповідь:**
+**Прогноз (записати до вимірювання). Що поверне кожен резолвер після зупинки сервера та спливання TTL і скільки часу займе відповідь:** запис www.cs-202-20.lab має TTL 90 с, а запит виконується після спливання цього часу. Тому звичайний кешований запис в обох резолверах уже буде застарілим. Для отримання нової відповіді потрібен авторитативний сервер 10.53.1.1, який зупинено. resolver-a поверне SERVFAIL без записів в ANSWER, оскільки не зможе отримати актуальну відповідь від недоступного сервера. Відповідь буде не миттєвою: резолвер деякий час очікуватиме на відповідь від сервера (можливо, кілька секунд). resolver-b (із підтримкою serve-stale, RFC 8767) зможе повернути застарілий запис із кешу: NOERROR, IP-адресу 10.53.0.80 або 10.53.0.81 залежно від того, який запис було закешовано із коротким TTL.
 
 **Кешування запису в обох резолверах (крок 2) і час зупинки сервера (крок 3):**
 
-```text
+```
+root@ns-cs-202-20:/# dig @10.53.0.53 test.cs-202-20.lab +noall +answer
+test.cs-202-20.lab.     20      IN      A       10.53.0.81
+root@ns-cs-202-20:/# dig @10.53.0.54 test.cs-202-20.lab +noall +answer
+test.cs-202-20.lab.     20      IN      A       10.53.0.81
+root@ns-cs-202-20:/# named-stop
+root@ns-cs-202-20:/# date +%T
+23:17:09
+root@ns-cs-202-20:/# sleep 30 
 ```
 
 **Запити із заміром часу (крок 5):**
 
-```text
+```
+root@ns-cs-202-20:/# time dig @10.53.0.53 test.cs-202-20.lab +tries=1 +timeout=30
+;; communications error to 10.53.0.53#53: timed out
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> @10.53.0.53 test.cs-202-20.lab +tries=1 +timeout=30
+; (1 server found)
+;; global options: +cmd
+;; no servers could be reached
+
+real    0m30.051s
+user    0m0.007s
+sys     0m0.003s
+root@ns-cs-202-20:/# time dig @10.53.0.53 test.cs-202-20.lab +tries=1 +timeout=30
+;; communications error to 10.53.0.53#53: timed out
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> @10.53.0.53 test.cs-202-20.lab +tries=1 +timeout=30
+; (1 server found)
+;; global options: +cmd
+;; no servers could be reached
+
+real    0m30.051s
+user    0m0.006s
+sys     0m0.005s
+root@ns-cs-202-20:/# time dig @10.53.0.54 test.cs-202-20.lab +tries=1 +timeout=30
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> @10.53.0.54 test.cs-202-20.lab +tries=1 +timeout=30
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 40336
+;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;test.cs-202-20.lab.            IN      A
+
+;; ANSWER SECTION:
+test.cs-202-20.lab.     30      IN      A       10.53.0.81
+
+;; Query time: 1799 msec
+;; SERVER: 10.53.0.54#53(10.53.0.54) (UDP)
+;; WHEN: Mon Nov 02 23:20:39 UTC 2026
+;; MSG SIZE  rcvd: 63
+
+
+real    0m1.821s
+user    0m0.006s
+sys     0m0.005s
 ```
 
 | Запит | status або тайм-аут | ANSWER, TTL | `real` |
 |---|---|---|---|
-| resolver-a, перший | | | |
-| resolver-a, другий | | | |
-| resolver-b | | | |
+| resolver-a, перший | тайм-аут | - | 30,051 с |
+| resolver-a, другий | тайм-аут | - | 30,051 с |
+| resolver-b | NOERROR | 10.53.0.81, TTL 30 с | 1,821 с |
 
 **Час `named-start` і вивід циклу спостереження до першої успішної відповіді (крок 6):**
 
-```text
+```
+root@ns-cs-202-20:/# named-start; date +%T; while true; do echo "$(date +%T) $(dig @10.53.0.53 test.cs-202-20
+.lab +short +tries=1 +timeout=3)"; sleep 2; done
+23:25:38
+23:25:38 10.53.0.81
 ```
 
 **Перевірка після завдання (`dig @10.53.1.1 sNN.lab SOA +norec +short`):**
 
-```text
+```
+ns.cs-202-20.lab. admin.cs-202-20.lab. 2026110217 3600 600 86400 90
 ```
 
 ### Постмортем
@@ -548,10 +658,31 @@ cs-202-20.lab.          20      IN      SOA     ns.cs-202-20.lab. admin.cs-202-2
 
 ## Фінальний файл зони
 
-Повний вміст `stand/students/sNN/zone/sNN.lab.zone` після завершення роботи.
+```
+; Zone cs-202-20.lab  ^`^t starting version.
+; After every change: increase the serial, then run  zone-reload
+$TTL 90
+@     20 IN SOA ns.cs-202-20.lab. admin.cs-202-20.lab. (
+            2026110217 ; serial
+            3600       ; refresh
+            600        ; retry
+            86400      ; expire
+            90         ; minimum
+        )
+@     IN NS ns.cs-202-20.lab.
+ns    IN A  10.53.1.1
 
-```text
-Вставити вміст файлу зони
+; ---- add records from your variant card below this line ----
+@       IN NS    ns.cs-202-20.lab.
+ns      IN A     10.53.1.1
+www     IN A     10.53.0.81
+api     IN CNAME www
+mail    IN A     10.53.0.80
+@       IN MX    35 mail
+@       IN TXT   "lab-token=5a88a2c0"
+test 20 IN A     10.53.0.81
+new-swsmz IN A 10.53.0.80
+
 ```
 
 ## Висновки
