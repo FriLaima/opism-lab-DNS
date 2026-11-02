@@ -14,14 +14,14 @@
 
 | Параметр | Значення |
 |---|---|
-| `$TTL`, с | |
-| TTL запису SOA, с | |
-| Поле `minimum` SOA, с | |
-| Псевдонім (CNAME на `www`) | |
-| Другий хост і його TTL, с | |
-| Пріоритет MX | |
-| Токен TXT | |
-| Ім'я для завдання 5 | |
+| `$TTL`, с | 90 |
+| TTL запису SOA, с | 20 |
+| Поле `minimum` SOA, с | 90 |
+| Псевдонім (CNAME на `www`) | api |
+| Другий хост і його TTL, с | test-20 |
+| Пріоритет MX | 35 |
+| Токен TXT | 5a88a2c0 |
+| Ім'я для завдання 5 |  |
 
 ## Завдання 1. Складові URI
 
@@ -29,23 +29,23 @@
 
 | № | scheme | userinfo | host | port | path | query | fragment |
 |---|---|---|---|---|---|---|---|
-| 1 | | | | | | | |
-| 2 | | | | | | | |
-| 3 | | | | | | | |
-| 4 | | | | | | | |
-| 5 | | | | | | | |
+| 1 | https | - | www.cs-202-20.lab | 80 за замовчуванням | /media/orders | id=76&sort=uk | top |
+| 2 | http | - | api.cs-202-20.lab | 80 | /orders/ | id=%D0%BA%D0%B8%D1%97%D0%B2 | - |
+| 3 | http | user:pass | test.cs-202-20.lab | 80 за замовчуванням | /media | - | section-2 |
+| 4 | https | - | www.cs-202-20.lab | 8443 | 	/orders | - | - |
+| 5 | mailto | - | - | - | admin@cs-202-20.lab | subject=media | - |
 
 | № | Ім'я, що запитується в DNS | Заголовок `Host` | Ціль запиту (request target) |
 |---|---|---|---|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
-| 4 | | | |
-| 5 | | | |
+| 1 | www.cs-202-20.lab | www.cs-202-20.lab | /media/orders?id=76&sort=uk |
+| 2 | api.cs-202-20.lab | api.cs-202-20.lab | /orders/?id=%D0%BA%D0%B8%D1%97%D0%B2 |
+| 3 | test.cs-202-20.lab | test.cs-202-20.lab | /media |
+| 4 | www.cs-202-20.lab | www.cs-202-20.lab:8443 | /orders |
+| 5 | - | - | - |
 
-**Декодоване значення параметра URI 2:**
+**Декодоване значення параметра URI 2:** D0BA = к, D0B8 = и, D197 = ї, D0B2 = в (київ)
 
-**Чому URI 5 не має складової host, хоча містить символ `@`:**
+**Чому URI 5 не має складової host, хоча містить символ `@`:** тому що mailto — це схема для електронної пошти, а не HTTP. Символ @ розділяє ім'я користувача та домен у поштовій адресі, але не визначає складову host URI.
 
 ### 1.2. Перевірка (після завдання 3)
 
@@ -72,31 +72,131 @@
 
 ## Завдання 2. Проходження ієрархії вручну
 
-```text
-Вставити вивід команд
+**Команди**
+```
+dig @10.53.0.2 ns.cs-202-20.lab A +norec
+dig @10.53.0.3 ns.cs-202-20.lab A +norec
+dig @10.53.1.1 ns.cs-202-20.lab A +norec
+```
+**Вивід**
+```
+root@ns-cs-202-20:/# dig @10.53.0.2 ns.cs-202-20.lab A +norec
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> @10.53.0.2 ns.cs-202-20.lab A +norec
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 53237
+;; flags: qr; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 2
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: ccba34265fa333ad010000006ae89abe541f13413afad1f1 (good)
+;; QUESTION SECTION:
+;ns.cs-202-20.lab.              IN      A
+
+;; AUTHORITY SECTION:
+lab.                    172800  IN      NS      ns1.nic.lab.
+
+;; ADDITIONAL SECTION:
+ns1.nic.lab.            172800  IN      A       10.53.0.3
+
+;; Query time: 80 msec
+;; SERVER: 10.53.0.2#53(10.53.0.2) (UDP)
+;; WHEN: Mon Nov 02 14:14:22 UTC 2026
+;; MSG SIZE  rcvd: 117
+
+root@ns-cs-202-20:/# dig @10.53.0.3 ns.cs-202-20.lab A +norec
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> @10.53.0.3 ns.cs-202-20.lab A +norec
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 34318
+;; flags: qr; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 2
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 799160644d209475010000006ae89c0611c05bcdb5edbd38 (good)
+;; QUESTION SECTION:
+;ns.cs-202-20.lab.              IN      A
+
+;; AUTHORITY SECTION:
+cs-202-20.lab.          3600    IN      NS      ns.cs-202-20.lab.
+
+;; ADDITIONAL SECTION:
+ns.cs-202-20.lab.       3600    IN      A       10.53.1.1
+
+;; Query time: 82 msec
+;; SERVER: 10.53.0.3#53(10.53.0.3) (UDP)
+;; WHEN: Mon Nov 02 14:19:50 UTC 2026
+;; MSG SIZE  rcvd: 103
+
+root@ns-cs-202-20:/# dig @10.53.1.1 ns.cs-202-20.lab A +norec
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> @10.53.1.1 ns.cs-202-20.lab A +norec
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 39440
+;; flags: qr aa; QUERY: 1, ANSWER: 1, AUTHORITY: 1, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 332764f1398188f7010000006ae89c12b02ba156b64b7a50 (good)
+;; QUESTION SECTION:
+;ns.cs-202-20.lab.              IN      A
+
+;; ANSWER SECTION:
+ns.cs-202-20.lab.       90      IN      A       10.53.1.1
+
+;; AUTHORITY SECTION:
+cs-202-20.lab.          90      IN      NS      ns.cs-202-20.lab.
+
+;; Query time: 0 msec
+;; SERVER: 10.53.1.1#53(10.53.1.1) (UDP)
+;; WHEN: Mon Nov 02 14:20:02 UTC 2026
+;; MSG SIZE  rcvd: 103
 ```
 
 | Сервер | status | flags | ANSWER | AUTHORITY | ADDITIONAL |
 |---|---|---|---|---|---|
-| 10.53.0.2 | | | | | |
-| 10.53.0.3 | | | | | |
-| 10.53.1.1 | | | | | |
+| 10.53.0.2 | NOERROR | qr | 0 | 1 | 2 |
+| 10.53.0.3 | NOERROR | qr | 0 | 1 | 2 |
+| 10.53.1.1 | NOERROR | qr, aa | 1 | 1 | 1 |
 
-**Вивід `dig ns.sNN.lab A +trace`:**
+**Вивід `dig ns.cs-202-20.lab A +trace`:**
 
-```text
+```
+root@ns-cs-202-20:/# dig ns.cs-202-20.lab A +trace
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> ns.cs-202-20.lab A +trace
+;; global options: +cmd
+.                       79741   IN      NS      a.root-servers.net.
+;; Received 59 bytes from 10.53.0.53#53(10.53.0.53) in 0 ms
+
+lab.                    172800  IN      NS      ns1.nic.lab.
+;; Received 117 bytes from 10.53.0.2#53(a.root-servers.net) in 80 ms
+
+cs-202-20.lab.          3600    IN      NS      ns.cs-202-20.lab.
+;; Received 103 bytes from 10.53.0.3#53(ns1.nic.lab) in 40 ms
+
+ns.cs-202-20.lab.       90      IN      A       10.53.1.1
+cs-202-20.lab.          90      IN      NS      ns.cs-202-20.lab.
+;; Received 103 bytes from 10.53.1.1#53(ns.cs-202-20.lab) in 1 ms
 ```
 
 | Запит | TTL запису NS | Прапорець `aa` | Секція, у якій міститься NS |
 |---|---|---|---|
-| `dig @10.53.0.3 sNN.lab NS +norec` | | | |
-| `dig @10.53.1.1 sNN.lab NS +norec` | | | |
+| `dig @10.53.0.3 sNN.lab NS +norec` | 3600 | - | AUTHORITY SECTION |
+| `dig @10.53.1.1 sNN.lab NS +norec` | 90 | + | ANSWER SECTION |
 
 **1. Які відповіді є відсиланнями і за якими ознаками це визначено?**
-
+Відсиланням є відповідь від сервера 10.53.0.3. У ній `ANSWER: 0`, але в секції AUTHORITY міститься NS-запис `ns.cs-202-20.lab`, який вказує на авторитетний DNS-сервер домену. У секції ADDITIONAL також надано його IP-адресу `10.53.1.1`. Відповідь від `10.53.1.1` не є відсиланням, оскільки містить остаточний запис у секції ANSWER.
 **2. Для чого у відповіді TLD присутній запис у секції ADDITIONAL і що сталося б, якби його не було?**
-
+Запис у секції ADDITIONAL надає IP-адресу DNS-сервера, на який потрібно передати наступний запит. У цьому випадку для `ns.cs-202-20.lab` вказана адреса `10.53.1.1`. Завдяки цьому резолверу не потрібно виконувати окремий DNS-запит, щоб дізнатися IP-адресу цього сервера.
 **3. Яка з двох копій запису NS є авторитативною і чому?**
+Авторитативною є копія NS-запису на власному DNS-сервері `10.53.1.1`. Це підтверджує прапорець aa у відповіді, який означає, що сервер є авторитетним для цього домену. TLD-сервер `10.53.0.3` лише надає відсилання до DNS-сервера домену, тому його NS-запис у секції AUTHORITY не є авторитетною відповіддю для цієї зони. На власному сервері NS-запис розміщений у секції ANSWER, а прапорець aa підтверджує його авторитетність.
 
 ## Завдання 3. Заповнення власної зони
 
