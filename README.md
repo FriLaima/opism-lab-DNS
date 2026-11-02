@@ -202,35 +202,145 @@ cs-202-20.lab.          90      IN      NS      ns.cs-202-20.lab.
 
 **Вивід `zone-reload`:**
 
-```text
+```
+root@ns-cs-202-20:/# zone-reload
+zone cs-202-20.lab/IN: loaded serial 2026110202
+OK
+zone reload queued
 ```
 
 | Запис | status | Прапорець `aa` | Значення в ANSWER | TTL | Відповідає картці (так/ні) |
 |---|---|---|---|---|---|
-| `www` A | | | | | |
-| псевдонім CNAME | | | | | |
-| `mail` A | | | | | |
-| `@` MX | | | | | |
-| `@` TXT | | | | | |
-| другий хост A | | | | | |
+| `www` A | NOERROR | + | 10.53.0.80 | 90 | Так |
+| псевдонім CNAME (api) | NOERROR | + | www.cs-202-20.lab. | 90 | Так |
+| `mail` A | NOERROR | + | 10.53.0.80 | 90 | Так |
+| `@` MX | NOERROR | + | 35 mail.cs-202-20.lab. | 90 | Так |
+| `@` TXT | NOERROR | + | "lab-token=5a88a2c0" | 90 | Так |
+| другий хост A | NOERROR | + | 10.53.0.81 | 90 | Так |
 
 **Порівняння відповідей резолвера та власного сервера:**
 
-```text
+```
+root@ns-cs-202-20:/# dig api.cs-202-20.lab
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> api.cs-202-20.lab
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 43130
+;; flags: qr rd ra; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;api.cs-202-20.lab.             IN      A
+
+;; ANSWER SECTION:
+api.cs-202-20.lab.      90      IN      CNAME   www.cs-202-20.lab.
+www.cs-202-20.lab.      90      IN      A       10.53.0.80
+
+;; Query time: 41 msec
+;; SERVER: 10.53.0.53#53(10.53.0.53) (UDP)
+;; WHEN: Mon Nov 02 19:16:26 UTC 2026
+;; MSG SIZE  rcvd: 80
+
+root@ns-cs-202-20:/# dig @10.53.1.1 api.cs-202-20.lab +norec
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> @10.53.1.1 api.cs-202-20.lab +norec
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 57687
+;; flags: qr aa; QUERY: 1, ANSWER: 2, AUTHORITY: 1, ADDITIONAL: 2
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 862b347a5e8e4c58010000006ae8e19e5676fe73eeada5bb (good)
+;; QUESTION SECTION:
+;api.cs-202-20.lab.             IN      A
+
+;; ANSWER SECTION:
+api.cs-202-20.lab.      90      IN      CNAME   www.cs-202-20.lab.
+www.cs-202-20.lab.      90      IN      A       10.53.0.80
+
+;; AUTHORITY SECTION:
+cs-202-20.lab.          90      IN      NS      ns.cs-202-20.lab.
+
+;; ADDITIONAL SECTION:
+ns.cs-202-20.lab.       90      IN      A       10.53.1.1
+
+;; Query time: 0 msec
+;; SERVER: 10.53.1.1#53(10.53.1.1) (UDP)
+;; WHEN: Mon Nov 02 19:16:46 UTC 2026
+;; MSG SIZE  rcvd: 141
+
+root@ns-cs-202-20:/# dig cs-202-20.lab MX
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> cs-202-20.lab MX
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 11362
+;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;cs-202-20.lab.                 IN      MX
+
+;; ANSWER SECTION:
+cs-202-20.lab.          90      IN      MX      35 mail.cs-202-20.lab.
+
+;; Query time: 1 msec
+;; SERVER: 10.53.0.53#53(10.53.0.53) (UDP)
+;; WHEN: Mon Nov 02 19:17:11 UTC 2026
+;; MSG SIZE  rcvd: 63
+
+root@ns-cs-202-20:/# dig @10.53.1.1 cs-202-20.lab MX +norec
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> @10.53.1.1 cs-202-20.lab MX +norec
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 64422
+;; flags: qr aa; QUERY: 1, ANSWER: 1, AUTHORITY: 1, ADDITIONAL: 3
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 9bc12d1f535c45f1010000006ae8e1c5b60e39513c747c5b (good)
+;; QUESTION SECTION:
+;cs-202-20.lab.                 IN      MX
+
+;; ANSWER SECTION:
+cs-202-20.lab.          90      IN      MX      35 mail.cs-202-20.lab.
+
+;; AUTHORITY SECTION:
+cs-202-20.lab.          90      IN      NS      ns.cs-202-20.lab.
+
+;; ADDITIONAL SECTION:
+mail.cs-202-20.lab.     90      IN      A       10.53.0.80
+ns.cs-202-20.lab.       90      IN      A       10.53.1.1
+
+;; Query time: 0 msec
+;; SERVER: 10.53.1.1#53(10.53.1.1) (UDP)
+;; WHEN: Mon Nov 02 19:17:25 UTC 2026
+;; MSG SIZE  rcvd: 140
 ```
 
 | Запит | flags | ANSWER (кількість, типи) | AUTHORITY (кількість, типи) | ADDITIONAL (кількість, типи) | TTL |
 |---|---|---|---|---|---|
-| псевдонім через resolver-a | | | | | |
-| псевдонім через 10.53.1.1 | | | | | |
-| MX через resolver-a | | | | | |
-| MX через 10.53.1.1 | | | | | |
+| псевдонім через resolver-a | qr rd ra | 2: CNAME, A | 0 | 1: OPT | 90 |
+| псевдонім через 10.53.1.1 | qr aa | 2: CNAME, A |	1: NS | 2: A, OPT | 90 |
+| MX через resolver-a | qr rd ra | 1: MX | 0 | 1: OPT | 90 |
+| MX через 10.53.1.1 | qr aa | 1: MX | 1: NS | 	3: A, A, OPT | 90 |
 
-**Пояснення відмінностей:**
+**Пояснення відмінностей:** через `resolver-a` відповіді містять прапорці `rd` і `ra`, оскільки резолвер виконує рекурсивний пошук. Через власний DNS-сервер `10.53.1.1` отримуємо авторитетні відповіді з прапорцем `aa`. У відповідях власного сервера додатково присутній NS-запис у AUTHORITY та IP-адреси серверів у ADDITIONAL. Для `api` повертаються два записи: `CNAME` та `A` (`10.53.0.80`). Для MX-запиту повертається поштовий сервер `mail.cs-202-20.lab` із пріоритетом 35 та його IP-адреса `10.53.0.80`.
 
 **Повідомлення `zone-check` після тимчасового додавання `@ IN CNAME www`:**
 
-```text
+```
+root@ns-cs-202-20:/# zone-check
+dns_master_load: /lab/zone/cs-202-20.lab.zone:23: cs-202-20.lab: CNAME and other data
+zone cs-202-20.lab/IN: loading from master file /lab/zone/cs-202-20.lab.zone failed: CNAME and other data
+zone cs-202-20.lab/IN: not loaded due to errors.
 ```
 
 **1. Який TTL має кожен запис зони і звідки це значення взято?**
@@ -243,33 +353,53 @@ cs-202-20.lab.          90      IN      NS      ns.cs-202-20.lab.
 
 **Два запити з інтервалом 5 с:**
 
-```text
+```
+root@ns-cs-202-20:/# dig www.cs-202-20.lab +noall +answer                 
+www.cs-202-20.lab.      90      IN      A       10.53.0.80
+root@ns-cs-202-20:/# sleep 5 
+root@ns-cs-202-20:/# dig www.cs-202-20.lab +noall +answer
+www.cs-202-20.lab.      80      IN      A       10.53.0.80
 ```
 
-**Прогноз (записати до вимірювання). Формула часу появи нової адреси через залишок R, найбільша можлива затримка:**
+**Прогноз (записати до вимірювання). Формула часу появи нової адреси через залишок R, найбільша можлива затримка:** резолвер зберігає DNS-запис www.cs-202-20.lab у кеші на 90 секунд. Через 5 секунд TTL зменшився до 80 секунд, отже, у кеші залишилося приблизно 80 секунд. Після зміни IP-адреси та виконання zone-reload резолвер продовжить повертати стару адресу 10.53.0.80, доки не завершиться залишок TTL (R). Після цього він отримає нову адресу 10.53.0.81 під час наступного запиту.
 
 **Перевірка, що сервер до `zone-reload` повертає стару адресу:**
 
-```text
+```
+root@ns-cs-202-20:/# dig @10.53.1.1 www.cs-202-20.lab +norec +short
+10.53.0.80
 ```
 
 **Залишок R і час (крок 4), час `zone-reload` (крок 5), перевірка на сервері (крок 6):**
 
-```text
+```
+root@ns-cs-202-20:/# date +%T; dig www.cs-202-20.lab +noall +answer; zone-reload; date +%T
+20:59:41
+www.cs-202-20.lab.      90      IN      A       10.53.0.80
+zone cs-202-20.lab/IN: loaded serial 2026110212
+OK
+zone reload queued
+20:59:41
 ```
 
-**Очікуваний час появи нової адреси (підставити R у формулу):**
+**Очікуваний час появи нової адреси (підставити R у формулу):** 20:59:41 + 90с = 21:01:11
 
-**Вивід циклу спостереження (перші два рядки, два останні рядки зі старою адресою, рядок з новою адресою):**
+**Вивід циклу спостереження (перші два рядки, два останні рядки зі старою адресою, рядок з новою адресою):** 
 
-```text
+```
+20:59:56 10.53.0.80
+20:59:58 10.53.0.80
+...
+21:01:08 10.53.0.80
+21:01:10 10.53.0.80
+21:01:12 10.53.0.81
 ```
 
-**Рядок `server:` з відповіді `curl`:**
+**Рядок `server:` з відповіді `curl`:** server: web-b 
 
 | Час зміни | Очікуваний час | Спостережений час | Виміряна затримка, с | Прогноз, с |
 |---|---|---|---|---|
-| | | | | |
+| 20:59:41 | 21:01:11 | 21:01:12 | 91 | 90 |
 
 **1. Чим пояснюється розбіжність між прогнозом і виміряним значенням?**
 
@@ -283,17 +413,45 @@ cs-202-20.lab.          90      IN      NS      ns.cs-202-20.lab.
 
 **Перевірка, що сервер до `zone-reload` повертає `NXDOMAIN`:**
 
-```text
+```
+root@ns-cs-202-20:/# dig @10.53.1.1 new-swsmz.cs-202-20.lab +norec
+
+; <<>> DiG 9.18.39-0ubuntu0.24.04.8-Ubuntu <<>> @10.53.1.1 new-swsmz.cs-202-20.lab +norec
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 41032
+;; flags: qr aa; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 126d0ef0914e3caa010000006ae90124d5e8594ee918fbf9 (good)
+;; QUESTION SECTION:
+;new-swsmz.cs-202-20.lab.       IN      A
+
+;; AUTHORITY SECTION:
+cs-202-20.lab.          20      IN      SOA     ns.cs-202-20.lab. admin.cs-202-20.lab. 2026110212 3600 600 86400 90
+
+;; Query time: 1 msec
+;; SERVER: 10.53.1.1#53(10.53.1.1) (UDP)
+;; WHEN: Mon Nov 02 21:31:16 UTC 2026
+;; MSG SIZE  rcvd: 125
 ```
 
 **Запит через resolver-a (крок 3), час `zone-reload` (крок 4), перевірка на сервері (крок 5):**
 
-```text
+```
+
 ```
 
 **Вивід циклу спостереження (перші два рядки, останній рядок з `NXDOMAIN`, перший рядок з `NOERROR`):**
 
-```text
+```
+22:04:39 status: NXDOMAIN
+22:04:41 status: NXDOMAIN
+...
+22:04:45 status: NXDOMAIN
+22:04:47 status: NOERROR
 ```
 
 | Негативну відповідь закешовано | Запис створено | Ім'я резолвиться через resolver-a | Виміряно, с | Прогноз, с |
