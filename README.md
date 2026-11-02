@@ -6,9 +6,9 @@
 | ПІБ | Примаченко Ксенія Анатоліївна |
 | Група | КБЗІ-2.02 |
 | Ідентифікатор (`sNN`) | cs-202-20 |
-| Дата виконання | |
+| Дата виконання | 02-03.11.2026 |
 | Середовище | GitHub Codespaces |
-| Версія `dig` | |
+| Версія `dig` | 9.18.39 |
 
 ## Параметри варіанта
 
@@ -21,7 +21,7 @@
 | Другий хост і його TTL, с | test-20 |
 | Пріоритет MX | 35 |
 | Токен TXT | 5a88a2c0 |
-| Ім'я для завдання 5 |  |
+| Ім'я для завдання 5 | `new-swsmz.cs-202-20.lab` |
 
 ## Завдання 1. Складові URI
 
@@ -49,26 +49,111 @@
 
 ### 1.2. Перевірка (після завдання 3)
 
-```text
-Вставити вивід команд для URI 1–3
+```
+root@ns-cs-202-20:/# curl -v 'http://www.cs-202-20.lab/media/orders?id=76&sort=uk#top'; curl -v 'http://api.cs-202-20.lab:80/orders/?id=%D0%BA%D0%B8%D1%97%D0%B2'; curl -v 'http://user:pass@test.cs-202-20.lab/media#section-2'
+* Host www.cs-202-20.lab:80 was resolved.
+* IPv6: (none)
+* IPv4: 10.53.0.81
+*   Trying 10.53.0.81:80...
+* Connected to www.cs-202-20.lab (10.53.0.81) port 80
+> GET /media/orders?id=76&sort=uk HTTP/1.1
+> Host: www.cs-202-20.lab
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Server: nginx/1.24.0 (Ubuntu)
+< Date: Mon, 02 Nov 2026 23:42:21 GMT
+< Content-Type: text/plain
+< Content-Length: 138
+< Connection: keep-alive
+< 
+server: web-b
+Host: www.cs-202-20.lab
+request URI: /media/orders?id=76&sort=uk
+path: /media/orders
+query: id=76&sort=uk
+client: 10.53.1.1
+* Connection #0 to host www.cs-202-20.lab left intact
+* Host api.cs-202-20.lab:80 was resolved.
+* IPv6: (none)
+* IPv4: 10.53.0.81
+*   Trying 10.53.0.81:80...
+* Connected to api.cs-202-20.lab (10.53.0.81) port 80
+> GET /orders/?id=%D0%BA%D0%B8%D1%97%D0%B2 HTTP/1.1
+> Host: api.cs-202-20.lab
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Server: nginx/1.24.0 (Ubuntu)
+< Date: Mon, 02 Nov 2026 23:42:21 GMT
+< Content-Type: text/plain
+< Content-Length: 156
+< Connection: keep-alive
+< 
+server: web-b
+Host: api.cs-202-20.lab
+request URI: /orders/?id=%D0%BA%D0%B8%D1%97%D0%B2
+path: /orders/
+query: id=%D0%BA%D0%B8%D1%97%D0%B2
+client: 10.53.1.1
+* Connection #0 to host api.cs-202-20.lab left intact
+* Host test.cs-202-20.lab:80 was resolved.
+* IPv6: (none)
+* IPv4: 10.53.0.81
+*   Trying 10.53.0.81:80...
+* Connected to test.cs-202-20.lab (10.53.0.81) port 80
+* Server auth using Basic with user 'user'
+> GET /media HTTP/1.1
+> Host: test.cs-202-20.lab
+> Authorization: Basic dXNlcjpwYXNz
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Server: nginx/1.24.0 (Ubuntu)
+< Date: Mon, 02 Nov 2026 23:42:21 GMT
+< Content-Type: text/plain
+< Content-Length: 98
+< Connection: keep-alive
+< 
+server: web-b
+Host: test.cs-202-20.lab
+request URI: /media
+path: /media
+query: 
+client: 10.53.1.1
+* Connection #0 to host test.cs-202-20.lab left intact
 ```
 
 **Значення заголовка `Authorization` і результат декодування:**
 
-```text
+```
+root@ns-cs-202-20:/# echo 'dXNlcjpwYXNz' | base64 -d
+user:pass
 ```
 
 **URI 4: етап, на якому запит не вдається (пошук імені / TCP / TLS), і рядки виводу, що це підтверджують:**
 
-```text
+```
+root@ns-cs-202-20:/# curl -v 'https://www.cs-202-20.lab:8443/media/../orders'
+* Host www.cs-202-20.lab:8443 was resolved.
+* IPv6: (none)
+* IPv4: 10.53.0.81
+*   Trying 10.53.0.81:8443...
+* connect to 10.53.0.81 port 8443 from 10.53.1.1 port 49698 failed: Connection refused
+* Failed to connect to www.cs-202-20.lab port 8443 after 0 ms: Couldn't connect to server
+* Closing connection
+curl: (7) Failed to connect to www.cs-202-20.lab port 8443 after 0 ms: Couldn't connect to server
 ```
 
 | Запит | `request URI`, отриманий сервером | `path`, отриманий сервером |
 |---|---|---|
-| звичайний | | |
-| `--path-as-is` | | |
+| звичайний | /orders | /orders |
+| `--path-as-is` | /media/../orders | /orders |
 
-**Розбіжності між URI та тим, що отримав сервер, і їх пояснення:**
+**Розбіжності між URI та тим, що отримав сервер, і їх пояснення:** у звичайному запиті curl самостійно нормалізує URI: видаляє `/media/..` і надсилає серверу `/orders`. Тому request URI та path збігаються. Під час використання `--path-as-is` клієнт передає початковий URI `/media/../orders` без нормалізації. Сервер отримує саме такий request URI, але самостійно обробляє конструкцію `..` і визначає path як `/orders`.
 
 ## Завдання 2. Проходження ієрархії вручну
 
